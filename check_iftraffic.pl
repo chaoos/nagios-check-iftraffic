@@ -34,7 +34,7 @@
 use feature qw(switch say);
 
 #For older versions of perl
-#use Switch;
+use Switch;
 
 use strict;
 
