@@ -221,7 +221,7 @@ sub fetch_ifdescr {
 }
 
 sub format_volume {
-    my $prefix_x;
+    my $prefix_x = "";
     my ($x) = @_;
 
     if ( $x > 10**18 ) {
