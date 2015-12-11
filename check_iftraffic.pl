@@ -7,7 +7,8 @@
 # 	Markus Werner mw+nagios@wobcom.de (Version 1.0 to 2.0)
 # 	Greg Frater gregATfraterfactory.com (Version 3.0)
 # 	Ektanoor (Version 4.0 to 4.1)
-# 	Bernhard Schmidt berni@birkenwald.de (Version 5.0+)
+# 	Bernhard Schmidt berni@birkenwald.de (Version 5.0)
+#       Roman Gruber (Version 6.0)
 #
 # Send us bug reports, questions and comments about this plugin.
 # Latest version of this software: http://www.nagiosexchange.org
@@ -52,10 +53,15 @@ my $iface_speedOut;
 my $index_list;
 my $opt_h;
 my $units;
+my $v3_authproto;
+my $v3_authpassword;
+my $v3_privproto;
+my $v3_privpassword;
+my $v3_secname;
 
 my $session;
 my $error;
-my $snmp_version = 2;
+my $snmp_version;
 
 my @snmpoids;
 
@@ -121,7 +127,7 @@ sub unit2bits {
         case 'g' { return $value * 1000000000; }
         case 'm' { return $value * 1000000; }
         case 'k' { return $value * 1000; }
-        else     { return $value }
+        else       { return $value }
     };
 }
 
@@ -279,9 +285,9 @@ sub format_volume_bytes {
 }
 
 $np = Nagios::Plugin->new(
-	usage => "%s -H host [ -C community_string ] [ -p port ] [ -i if_index|if_descr ] [ -r ] [ -b if_max_speed_in | -I if_max_speed_in ] [ -O if_max_speed_out ] [ -u ] [ -B ] [ -A IP Address ] [ -L ] [ -M ] [ -w warn ] [ -c crit ] [ --total ]",
-	version => "5.0",
-	url => "https://github.com/bernhardschmidt/nagios-check-iftraffic",
+	usage => "%s -H host [ -P snmp_version ] [ -C community_string ] [ -p port ] [ -i if_index|if_descr ] [ -r ] [ -b if_max_speed_in | -I if_max_speed_in ] [ -O if_max_speed_out ] [ -u ] [ -B ] [ -A IP Address ] [ -L ] [ -M ] [ [ -U username ] [ -y authproto -Y authpassword ] [ -x privproto -X privpassword ] ] [ -w warn ] [ -c crit ] [ --total ]",
+	version => "6.0",
+	url => "https://github.com/chaoos/nagios-check-iftraffic",
 	blurb => "Check traffic on an interface using SNMP",
 	plugin => "check_iftraffic.pl",
 	timeout => 10,
@@ -292,6 +298,13 @@ $np = Nagios::Plugin->new(
 		"Example 4: check_iftraffic.pl -H host1 -C sneaky -i 5 -B -b 100 -u m\n" .
 		"Example 5: check_iftraffic.pl -H host1 -C sneaky -i 5 -B -b 20 -O 5 -u m\n" .
 		"Example 6: check_iftraffic.pl -H host1 -C sneaky -A 192.168.1.1 -B -b 100 -u m\n",
+);
+
+$np->add_arg(
+    spec    => 'protocol|P=s',
+    help    => "SNMP protocol version (default: %s)",
+    label   => '[1|2|3]',
+    default => '2'
 );
 
 $np->add_arg(
@@ -381,6 +394,37 @@ $np->add_arg(
     help    => "Display total (absolute) amount of traffic in output and perfdata"
 );
 
+$np->add_arg(
+    spec    => 'secname|U=s',
+    help    => "SNMPv3 username",
+    label   => 'USERNAME'
+);
+
+$np->add_arg(
+    spec    => 'authproto|y=s',
+    help    => "SNMPv3 authentication protocol",
+    label   => '[MD5|SHA]'
+);
+
+$np->add_arg(
+    spec    => 'authpassword|Y=s',
+    help    => "SNMPv3 authentication password",
+    label   => 'PASSWORD'
+);
+
+$np->add_arg(
+    spec    => 'privproto|x=s',
+    help    => "SNMPv3 privacy protocol (default: %s)",
+    label   => '[DES|AES]',
+    default => 'DES'
+);
+
+$np->add_arg(
+    spec    => 'privpassword|X=s',
+    help    => "SNMPv3 privacy password",
+    label   => 'PASSWORD'
+);
+
 $np->getopts();
 
 $threshold = $np->set_thresholds(
@@ -390,6 +434,7 @@ $threshold = $np->set_thresholds(
 
 
 # Legacy variable assignments
+$snmp_version = $np->opts->protocol;
 $host_ip = $np->opts->address;
 $bytes = $np->opts->bytes;
 $iface_speed = $np->opts->bandwidth;
@@ -403,6 +448,11 @@ $port = $np->opts->port;
 $use_reg = $np->opts->regexp;
 $units = $np->opts->units;
 $warn_usage = $np->opts->warning;
+$v3_authproto = $np->opts->authproto;
+$v3_authpassword = $np->opts->authpassword;
+$v3_privproto = $np->opts->privproto;
+$v3_privpassword = $np->opts->privpassword;
+$v3_secname = $np->opts->secname;
 
 # Check for missing options
 if ( ($iface_speed) and ($bytes) ) {
@@ -443,7 +493,19 @@ if ( $snmp_version =~ /[12]/ ) {
     }
 }
 elsif ( $snmp_version =~ /3/ ) {
-    $np->nagios_die( "No support for SNMPv3 yet" );
+    ( $session, $error ) = Net::SNMP->session(
+        -hostname      => $host_address,
+        -port          => $port,
+        -version       => $snmp_version,
+        -username      => $v3_secname,
+        -authpassword  => $v3_authpassword,
+        -authprotocol  => $v3_authproto,
+        -privpassword  => $v3_privpassword,
+        -privprotocol  => $v3_privproto
+    );
+    if ( !defined($session) ) {
+        $np->nagios_die( $error );
+    }
 }
 else {
     $np->nagios_die( "Unknown SNMP version: $snmp_version" );
