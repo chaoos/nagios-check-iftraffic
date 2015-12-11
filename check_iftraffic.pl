@@ -107,21 +107,21 @@ sub bytes2bits {
 #Converts an input value to value in bytes
 sub unit2bytes {
     my ( $value, $unit ) = @_;
-    given ($unit) {
-        when ('G') { return $value * 1073741824; }
-        when ('M') { return $value * 1048576; }
-        when ('K') { return $value * 1024; }
-        default    { return $value }
+    switch ($unit) {
+        case 'G' { return $value * 1073741824; }
+        case 'M' { return $value * 1048576; }
+        case 'K' { return $value * 1024; }
+        else     { return $value }
     };
 }
 
 sub unit2bits {
     my ( $value, $unit ) = @_;
-    given ($unit) {
-        when ('g') { return $value * 1000000000; }
-        when ('m') { return $value * 1000000; }
-        when ('k') { return $value * 1000; }
-        default    { return $value }
+    switch ($unit) {
+        case 'g' { return $value * 1000000000; }
+        case 'm' { return $value * 1000000; }
+        case 'k' { return $value * 1000; }
+        else     { return $value }
     };
 }
 
@@ -378,7 +378,7 @@ $np->add_arg(
 
 $np->add_arg(
     spec    => 'total',
-    help    => "Display total (absolute) amount of traffic in output and perfdata";
+    help    => "Display total (absolute) amount of traffic in output and perfdata"
 );
 
 $np->getopts();
