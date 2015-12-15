@@ -1,5 +1,7 @@
 #!/usr/bin/perl -w
 #
+# nagios: -epn
+#
 # check_iftraffic.pl - Nagios(r) network traffic monitor plugin
 # Copyright (C) 2004 Gerd Mueller / Netways GmbH
 # based on check_traffic from Adrian Wieczorek, <ads (at) irc.pila.pl>
